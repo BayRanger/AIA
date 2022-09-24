@@ -10,6 +10,7 @@ import sys
 import utils
 from functools import reduce
 import pickle
+from matplotlib import pyplot as plt
 
 def binarizeImage(img):
     """
@@ -42,14 +43,23 @@ def binarizeImage(img):
     # Given a grayscale image, compute a binary representation 
     # Background pixel = 0
     # Foreground pixel = 255
+    ret, image1 = cv2.threshold(img,127,255,cv2.THRESH_BINARY)
+    #utils.show(thresh1)
+    #exit(0)
+    image = 255 -image1
 
     #TODO (optional):
     # ---- Erosion ----
     # Use morphological erosion to remove small connections between structures
-
-    #utils.show(res)
+        # Creating kernel
+    # kernel = np.ones((6, 6), np.uint8)
     
-    return np.zeros_like(img)
+    # Using cv2.erode() method 
+    # image = cv2.erode(image, kernel) 
+
+    # utils.show(image)
+    
+    return image
 
 def extractContours(img):
     """
@@ -72,6 +82,7 @@ def extractContours(img):
     utils.visualizeContours(img, contours)
 
     shapes = []
+    print("contour number: ",len(contours))
     for cnt in contours:
         N = len(cnt)
         shape = cnt.reshape((N,2))
@@ -107,7 +118,11 @@ def getFourierDescriptor(shape):
     
     # TODO:
     # Compute fourier descriptor of shape
-    return np.zeros(len(shape), dtype=complex)
+    fd = shape[:,0]+1j*shape[:, 1]
+
+    fft_shape = np.fft.fft(fd)
+
+    return fft_shape
 
 
 def normalizeFourierDescriptor(fd, n_freq):
@@ -136,19 +151,26 @@ def normalizeFourierDescriptor(fd, n_freq):
     
     # TODO:
     # Translation Invariance F(0) := 0
+    fd[0] = 0
 
- 
     # TODO:   
     # Scale Invariance F(i) := F(i)/|F(1)|
 
-
+    fd = fd/abs(fd[1])
     # TODO:   
     # Rotation Invariance, starting point invariance etc.
     # F := |F|
-
+    fd = np.abs(fd)
     # TODO:       
     # Filter higher frequencies
-    return np.ones(n_freq)
+    # print(fd)
+    # print("freq, ",n_freq)
+    second_half_freq = int(n_freq/2)
+    first_half_freq = n_freq - second_half_freq
+    res_new = np.zeros((n_freq))
+    res_new[ :first_half_freq] = fd[:first_half_freq]
+    res_new[-second_half_freq::] = fd[-second_half_freq::]
+    return res_new
 
 def classifyFourierDescriptor(nfd, nfd_templates, thresh):
     """
@@ -177,9 +199,20 @@ def classifyFourierDescriptor(nfd, nfd_templates, thresh):
     """
     
     index = -1
+    res = []
+    for temp in nfd_templates:
+        d = np.linalg.norm(temp -nfd)/len(nfd)
+        res.append(d)
+
+    res = np.array(res)
+    if (np.min(res) > thresh):
+        return -1
+    else:
+        return np.argmin(res)
     
+
     
-    return index
+    #return index
 
 
 def imageSegmentation(img, templates, n_freq, thresh):
@@ -227,10 +260,10 @@ def imageSegmentation(img, templates, n_freq, thresh):
 
 if __name__=="__main__":    
     template1 = cv2.imread("data/template1.jpg")
-    utils.show(template1)
+    # utils.show(template1)
     
     template2 = cv2.imread("data/template2.jpg")
-    utils.show(template2)
+    # utils.show(template2)fsho
     templates = [template1, template2]
 
 
